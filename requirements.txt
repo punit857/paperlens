@@ -1,0 +1,13 @@
+torch==2.11.0
+transformers==5.16.1
+peft==0.21.2
+bitsandbytes==0.50.2
+accelerate
+huggingface_hub
+datasets
+pydantic
+google-genai
+gradio
+pypdf
+numpy
+matplotlib
