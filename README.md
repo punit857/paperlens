@@ -2,48 +2,86 @@
 
 # PaperLens
 
-**Turn an ML paper abstract into structured JSON with a small, fine-tuned language model.**
+### Turning research abstracts into structured, machine-readable knowledge.
 
-[![Model](https://img.shields.io/badge/%F0%9F%A4%97%20Model-Hugging%20Face-yellow)](https://huggingface.co/punit-09/paperlens-qwen2.5-3b-qlora)
-[![Dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Dataset-Hugging%20Face-orange)](https://huggingface.co/datasets/punit-09/paperlens-arxiv-abstracts)
-[![Code license](https://img.shields.io/badge/code%20license-MIT-green)](LICENSE)
+Fine-tune a small language model to extract research tasks, methods, datasets, metrics, results, and contribution types from machine learning paper abstracts.
+
+**0.87 Overall Score** · **100% Valid JSON** · **3B-Parameter Model**
+
+[**Model**](https://huggingface.co/punit-09/paperlens-qwen2.5-3b-qlora) · [**Dataset**](https://huggingface.co/datasets/punit-09/paperlens-arxiv-abstracts) · [**Training Notebook**](notebooks/paperlens.ipynb)
+
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
+![Hugging Face](https://img.shields.io/badge/Hugging%20Face-FFD21E?style=flat-square&logo=huggingface&logoColor=black)
+![QLoRA](https://img.shields.io/badge/Fine--tuning-QLoRA-blue?style=flat-square)
+![License](https://img.shields.io/badge/Code-MIT-green?style=flat-square)
 
 </div>
 
-I fine-tuned **Qwen2.5-3B** with QLoRA to read a paper's title and abstract and return its **task, method, datasets, metrics, main result and contribution type**, using only a free Kaggle GPU.
+---
 
-On 150 held-out abstracts it scores **0.87** overall, compared with **0.77** for a 20B-parameter model given the same labeling rules and **0.66** for the untuned base model.
+## The problem
 
-## Results
+Research papers contain valuable information, but extracting it into a consistent structure is tedious. Important details such as datasets, evaluation metrics, and reported results are expressed differently across papers.
 
-![Overall score](docs/macro.png)
+**PaperLens explores whether a small, fine-tuned language model can automate this extraction task.**
 
-**Score per field** (0 to 1, higher is better)
+Given a paper's title and abstract, PaperLens produces structured JSON containing six fields:
 
-| Field | Qwen2.5-3B + prompt | gpt-oss-20b + rules | **PaperLens** |
-|---|:---:|:---:|:---:|
+| Field | What it captures |
+|---|---|
+| `task` | The research problem being addressed |
+| `method` | The proposed approach or technique |
+| `datasets` | Datasets mentioned in the abstract |
+| `metrics` | Evaluation metrics reported |
+| `main_result` | The main finding or quantitative result |
+| `contribution_type` | The type of research contribution |
+
+## Results at a glance
+
+Evaluated on **150 held-out abstracts**, PaperLens achieved an overall score of **0.87**, outperforming the two reported baselines.
+
+![Overall evaluation score comparing PaperLens with two baselines](docs/macro.png)
+
+### Field-level evaluation
+
+Scores range from 0 to 1; higher indicates greater agreement with the reference labels.
+
+| Field | Qwen2.5-3B + schema prompt | gpt-oss-20b + labeling rules | **PaperLens** |
+|:---|:---:|:---:|:---:|
 | Task | 0.53 | 0.60 | **0.81** |
 | Method | 0.67 | 0.69 | **0.78** |
 | Datasets | 0.64 | 0.89 | **0.93** |
 | Metrics | 0.59 | 0.80 | **0.91** |
 | Contribution type | 0.87 | 0.91 | **0.97** |
 | Main result | 0.67 | 0.75 | **0.81** |
-| **Overall** | 0.66 | 0.77 | **0.87** |
+| **Overall** | **0.66** | **0.77** | **0.87** |
 
-**Reliability**
+### Output reliability
 
-| | Qwen2.5-3B + prompt | gpt-oss-20b + rules | **PaperLens** |
-|---|:---:|:---:|:---:|
+| Measure | Qwen2.5-3B + schema prompt | gpt-oss-20b + labeling rules | **PaperLens** |
+|:---|:---:|:---:|:---:|
 | Valid JSON output | 98% | 99% | **100%** |
-| Datasets/metrics not found in the abstract | 10.0% (26/261) | 5.6% (9/161) | **0.0% (0/118)** |
+| Unsupported dataset/metric mentions when absent from abstract | 10.0% (26/261) | 5.6% (9/161) | **0.0% (0/118)** |
 
-Scores measure agreement with LLM-generated reference labels, not human ground truth, and PaperLens was trained in the same labeling style. 30 of the 150 test rows were reviewed by me. gpt-oss-20b is shown with the better of the two prompts I tried. On datasets, the gap to it is within statistical noise.
+**How to interpret these results:** Scores measure agreement with LLM-generated reference labels, not independently verified human ground truth. PaperLens was trained using the same labeling style. I manually reviewed 30 of the 150 test examples. The larger model's result reflects the better of two prompts tested, and the dataset comparison gap is within statistical noise.
 
-## Example
+## How it works
 
-**Title:** *Longer is (Not Necessarily) Stronger: Punctuated Long-Sequence Training for Enhanced Speech Recognition and Translation*
+![PaperLens training and evaluation pipeline](docs/pipeline.png)
 
-**Abstract (shortened):** *This paper presents a new method for training sequence-to-sequence models for speech recognition and translation tasks. Instead of the traditional approach of training models on short segments containing only lowercase or partial punctuation and capitalization (PnC) sentences, we propose training on longer utterances that include ...*
+1. **Collect:** Gather 1,749 arXiv abstracts from `cs.LG`, `cs.CL`, and `cs.CV`.
+2. **Label:** Generate structured labels using the Gemini API and check them with code.
+3. **Fine-tune:** Adapt Qwen2.5-3B using QLoRA on a free Kaggle T4 GPU, with a reported training time of approximately 30 minutes.
+4. **Evaluate:** Test on 150 held-out papers and report field-level scores and 95% confidence intervals.
+5. **Release:** Publish the model and dataset on Hugging Face.
+
+## Example output
+
+**Paper:** *Longer is (Not Necessarily) Stronger: Punctuated Long-Sequence Training for Enhanced Speech Recognition and Translation*
+
+**Input:** The paper's title and abstract, describing long-sequence training for speech recognition and translation.
+
+**Extracted JSON:**
 
 ```json
 {
@@ -61,18 +99,46 @@ Scores measure agreement with LLM-generated reference labels, not human ground t
 }
 ```
 
-## How it works
+*The example illustrates the output format; extracted claims should still be checked against the original paper.*
 
-![Pipeline](docs/pipeline.png)
+## Reproducibility and artifacts
+
+Explore the released artifacts to inspect the model, dataset, and training workflow.
+
+- **Fine-tuned model:** [PaperLens on Hugging Face](https://huggingface.co/punit-09/paperlens-qwen2.5-3b-qlora)
+- **Dataset and evaluation results:** [PaperLens dataset on Hugging Face](https://huggingface.co/datasets/punit-09/paperlens-arxiv-abstracts)
+- **Training and evaluation notebook:** [Open `paperlens.ipynb`](notebooks/paperlens.ipynb)
+
+The notebook is the starting point for examining the training and evaluation workflow. Consult it and the model documentation for the exact dependencies, loading procedure, and inference interface.
 
 ## Limitations
 
-- Labels are LLM-generated and contain errors; their noise rate is unmeasured.
-- One training run on English ML abstracts from three arXiv categories. Other fields are untested.
-- About 13 seconds per abstract on a T4 (4-bit model with an unmerged adapter), so this setup is not tuned for speed.
+- **Reference-label quality:** Labels were generated by an LLM and may contain errors. The overall label noise rate has not been measured.
+- **Limited evaluation scope:** The experiment covers English abstracts from three arXiv categories, with one reported training run.
+- **Inference latency:** Inference takes approximately 13 seconds per abstract on a T4 using a 4-bit model with an unmerged adapter. This setup has not been optimized for speed.
+- **Not a verified knowledge source:** The model can omit, misinterpret, or incorrectly extract claims. Outputs should be validated before use in downstream research workflows.
 
-## Links
+## Future directions
 
-[Model](https://huggingface.co/punit-09/paperlens-qwen2.5-3b-qlora) · [Dataset and results](https://huggingface.co/datasets/punit-09/paperlens-arxiv-abstracts) · [Full pipeline notebook](notebooks/paperlens.ipynb)
+Potential next steps include:
 
-Code is MIT-licensed. The model is **Improved using Qwen** and released under the Qwen Research License (non-commercial use only). Labels were generated with the Gemini API; check Google's terms before reusing them.
+- Expanding evaluation across more research domains and datasets.
+- Improving reference-label quality through broader human review.
+- Evaluating robustness to ambiguous abstracts and missing information.
+- Optimizing inference latency and measuring performance across multiple training runs.
+
+## License and attribution
+
+- **Code:** MIT license. See [`LICENSE`](LICENSE).
+- **Model:** Fine-tuned from Qwen2.5-3B. The released model is identified as improved using Qwen and is subject to the Qwen Research License, which restricts commercial use. Review the applicable license before deployment.
+- **Dataset:** Labels were generated using the Gemini API. Check the applicable terms before reusing or redistributing the labeled data.
+
+---
+
+<div align="center">
+
+**PaperLens** — exploring practical, resource-efficient extraction of structured knowledge from research papers.
+
+[Model](https://huggingface.co/punit-09/paperlens-qwen2.5-3b-qlora) · [Dataset](https://huggingface.co/datasets/punit-09/paperlens-arxiv-abstracts) · [Notebook](notebooks/paperlens.ipynb)
+
+</div>
